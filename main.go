@@ -156,10 +156,10 @@ func run() {
 		imd.Line(1)
 
 		// collisions
-		col := rayCollisions(pixel.L(pixel.V(player.x, player.y), pixel.V(x2, y2)))
-		for _, p := range col {
-			imd.Push(p)
-			imd.Circle(3, 1)
+		hit, col := rayCollisions(pixel.L(pixel.V(player.x, player.y), pixel.V(x2, y2)))
+		if hit {
+			imd.Push(col)
+			imd.Circle(3, 0)
 		}
 
 		imd.Draw(win)
@@ -167,22 +167,19 @@ func run() {
 	}
 }
 
-func main() {
-	opengl.Run(run)
-}
+// returns the end end point of a line and true if a line is hit, if not it'll return false and an (-1, -1) vector
+func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 
-// returns the end points of each line
-func rayCollisions(line pixel.Line) []pixel.Vec {
-
-	var colPoints []pixel.Vec
-
-	//for _, line := range rays {
 	// Vertical lines
 	for x := 1; x < TILE_COLUMNS; x++ {
 		point, hit := line.Intersect(pixel.L(pixel.V(float64(x)*float64(TILE_SIZE), 0), pixel.V(float64(x)*float64(TILE_SIZE), float64(HEIGHT))))
 
 		if hit {
-			colPoints = append(colPoints, point)
+			tile := CoordToTile(point)
+
+			if world[int(tile.Y)][int(tile.X)] == 1 {
+				return true, point
+			}
 		}
 	}
 
@@ -191,15 +188,30 @@ func rayCollisions(line pixel.Line) []pixel.Vec {
 		point, hit := line.Intersect(pixel.L(pixel.V(0, float64(y)*float64(TILE_SIZE)), pixel.V(float64(WIDTH), float64(y)*float64(TILE_SIZE))))
 
 		if hit {
-			colPoints = append(colPoints, point)
+			tile := CoordToTile(point)
+
+			if world[int(tile.Y)][int(tile.X)] == 1 {
+				return true, point
+			}
 		}
 	}
-	//}
 
-	return colPoints
+	return false, pixel.V(-1, -1)
+}
+
+func CoordToTile(v pixel.Vec) pixel.Vec {
+
+	v.X = math.Floor(v.X) / TILE_SIZE
+	v.Y = math.Floor(v.Y) / TILE_SIZE
+	//fmt.Printf("X: %f | Y: %f\n", v.X, v.Y)
+	return v
 }
 
 func degreesToRadians(degrees float64) float64 {
 
 	return degrees * math.Pi / 180
+}
+
+func main() {
+	opengl.Run(run)
 }
