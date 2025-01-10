@@ -170,41 +170,65 @@ func run() {
 // returns the end end point of a line and true if a line is hit, if not it'll return false and an (-1, -1) vector
 func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 
-	// Vertical lines
-	for x := 1; x < TILE_COLUMNS; x++ {
-		point, hit := line.Intersect(pixel.L(pixel.V(float64(x)*float64(TILE_SIZE), 0), pixel.V(float64(x)*float64(TILE_SIZE), float64(HEIGHT))))
+	var colPoints []pixel.Vec
 
-		if hit {
-			tile := CoordToTile(point)
+	for y := 0; y < TILE_ROWS; y++ {
+		for x := 0; x < TILE_COLUMNS; x++ {
+			tile := pixel.Vec{X: float64(x), Y: float64(y)}
 
-			if world[int(tile.Y)][int(tile.X)] == 1 {
-				return true, point
+			if isSolidTile(tile) {
+				// Define tile edges
+				tileLeft := pixel.L(pixel.V(tile.X*TILE_SIZE, tile.Y*TILE_SIZE), pixel.V(tile.X*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
+				tileRight := pixel.L(pixel.V((tile.X+1)*TILE_SIZE, tile.Y*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
+				tileTop := pixel.L(pixel.V(tile.X*TILE_SIZE, (tile.Y+1)*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
+				tileBottom := pixel.L(pixel.V(tile.X*TILE_SIZE, tile.Y*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, tile.Y*TILE_SIZE))
+
+				for _, edge := range []pixel.Line{tileLeft, tileRight, tileTop, tileBottom} {
+					point, hit := line.Intersect(edge)
+					if hit {
+						colPoints = append(colPoints, point)
+					}
+				}
 			}
 		}
 	}
 
-	// Horizontal lines
-	for y := 1; y < TILE_ROWS; y++ {
-		point, hit := line.Intersect(pixel.L(pixel.V(0, float64(y)*float64(TILE_SIZE)), pixel.V(float64(WIDTH), float64(y)*float64(TILE_SIZE))))
+	// Find the shortest point
+	shortestDistance := player.renderDis
+	var hitPoint pixel.Vec
+	hit := false
 
-		if hit {
-			tile := CoordToTile(point)
+	for _, point := range colPoints {
+		pDistance := distance(pixel.V(player.x, player.y), point)
 
-			if world[int(tile.Y)][int(tile.X)] == 1 {
-				return true, point
-			}
+		if pDistance < shortestDistance {
+			shortestDistance = pDistance
+			hitPoint = point
+			hit = true
 		}
+	}
+	if hit {
+		return true, hitPoint
 	}
 
 	return false, pixel.V(-1, -1)
 }
 
 func CoordToTile(v pixel.Vec) pixel.Vec {
+	return pixel.Vec{
+		X: math.Floor(v.X / TILE_SIZE),
+		Y: math.Floor(v.Y / TILE_SIZE),
+	}
+}
 
-	v.X = math.Floor(v.X) / TILE_SIZE
-	v.Y = math.Floor(v.Y) / TILE_SIZE
-	//fmt.Printf("X: %f | Y: %f\n", v.X, v.Y)
-	return v
+func isSolidTile(tile pixel.Vec) bool {
+	return world[int(tile.Y)][int(tile.X)] == 1
+}
+
+func distance(p1, p2 pixel.Vec) float64 {
+	dx := p2.X - p1.X
+	dy := p2.Y - p1.Y
+	return math.Sqrt(dx*dx + dy*dy)
 }
 
 func degreesToRadians(degrees float64) float64 {
