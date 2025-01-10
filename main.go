@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math"
+	"time"
 
 	"github.com/gopxl/pixel/v2"
 	"github.com/gopxl/pixel/v2/backends/opengl"
@@ -16,6 +18,8 @@ const WIDTH, HEIGHT int = TILE_COLUMNS * int(TILE_SIZE), TILE_ROWS * int(TILE_SI
 const COLUMNS int = 64
 const COLUMN_WIDTH float64 = float64(WIDTH) / float64(COLUMNS)
 
+const FPS = 60
+
 var player = struct {
 	x           float64
 	y           float64
@@ -28,8 +32,8 @@ var player = struct {
 	y:           50,
 	dir:         0,
 	renderDis:   64,
-	speed:       1,
-	sensitivity: 1,
+	speed:       4,
+	sensitivity: 3,
 }
 
 var world = [TILE_ROWS + 1][TILE_COLUMNS + 1]int{
@@ -59,7 +63,7 @@ func run() {
 		Title:     "Raycaster",
 		Bounds:    pixel.R(0, 0, float64(WIDTH), float64(HEIGHT)),
 		Resizable: false,
-		VSync:     true,
+		VSync:     false,
 	}
 	win, err := opengl.NewWindow(cfg)
 	if err != nil {
@@ -69,101 +73,121 @@ func run() {
 
 	imd := imdraw.New(nil)
 
+	lastTime := time.Now().Second()
+	frames := 0
+	ticks := 0
+
+	seconds := time.Tick(time.Second / FPS)
+
 	for !win.Closed() {
 
-		// @todo: Draw the colums for the raycaster instead of the tiles
-		/*for i := 0; i < COLUMNS; i++ {
-			imd.Color = color.RGBA{R: uint8(i * 5), G: 0, B: 0, A: 255}
-			imd.Push(pixel.Vec{X: float64(i) * COLUMN_WIDTH, Y: float64(HEIGHT)}, pixel.Vec{X: (float64(i) * COLUMN_WIDTH) + COLUMN_WIDTH, Y: 0})
-			imd.Rectangle(0)
-		}*/
+		select {
+		case <-seconds:
+			// @todo: Draw the colums for the raycaster instead of the tiles
+			/*for i := 0; i < COLUMNS; i++ {
+				imd.Color = color.RGBA{R: uint8(i * 5), G: 0, B: 0, A: 255}
+				imd.Push(pixel.Vec{X: float64(i) * COLUMN_WIDTH, Y: float64(HEIGHT)}, pixel.Vec{X: (float64(i) * COLUMN_WIDTH) + COLUMN_WIDTH, Y: 0})
+				imd.Rectangle(0)
+			}*/
 
-		////////////
-		//// UPDATE
-		////////////
+			////////////
+			//// UPDATE
+			////////////
 
-		/* CONTROLS */
-		// @todo: account for speed up when going diagnally, divide by 1.44
-		if win.Pressed(pixel.KeyW) {
-			player.y -= player.speed
-		}
-		if win.Pressed(pixel.KeyS) {
-			player.y += player.speed
-		}
-		if win.Pressed(pixel.KeyA) {
-			player.x -= player.speed
-		}
-		if win.Pressed(pixel.KeyD) {
-			player.x += player.speed
-		}
+			/* CONTROLS */
+			// @todo: account for speed up when going diagnally, divide by 1.44
+			if win.Pressed(pixel.KeyW) {
+				player.y -= player.speed
+			}
+			if win.Pressed(pixel.KeyS) {
+				player.y += player.speed
+			}
+			if win.Pressed(pixel.KeyA) {
+				player.x -= player.speed
+			}
+			if win.Pressed(pixel.KeyD) {
+				player.x += player.speed
+			}
 
-		if win.Pressed(pixel.KeyLeft) {
-			player.dir -= player.sensitivity
-		}
-		if win.Pressed(pixel.KeyRight) {
-			player.dir += player.sensitivity
-		}
+			if win.Pressed(pixel.KeyLeft) {
+				player.dir -= player.sensitivity
+			}
+			if win.Pressed(pixel.KeyRight) {
+				player.dir += player.sensitivity
+			}
 
-		/* DIRECTION */
+			/* DIRECTION */
 
-		if player.dir > 360 {
-			player.dir = 0 + (player.dir - 360)
-		} else if player.dir < 0 {
-			player.dir = 360 + player.dir
-		}
+			if player.dir > 360 {
+				player.dir = 0 + (player.dir - 360)
+			} else if player.dir < 0 {
+				player.dir = 360 + player.dir
+			}
 
-		rad := degreesToRadians(player.dir)
-		x2 := player.x + player.renderDis*math.Cos(rad)
-		y2 := player.y + player.renderDis*math.Sin(rad)
+			rad := degreesToRadians(player.dir)
+			x2 := player.x + player.renderDis*math.Cos(rad)
+			y2 := player.y + player.renderDis*math.Sin(rad)
 
-		////////////
-		//// DRAW
-		////////////
+			////////////
+			//// DRAW
+			////////////
 
-		/* LINES */
-		imd.Clear()
-		win.Clear(color.Black)
+			/* LINES */
+			imd.Clear()
+			win.Clear(color.Black)
 
-		imd.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255}
-		for x := 1; x < TILE_COLUMNS; x++ {
-			imd.Push(pixel.V(float64(x)*float64(TILE_SIZE), 0), pixel.V(float64(x)*float64(TILE_SIZE), float64(HEIGHT)))
-			imd.Line(1)
-		}
-		for y := 1; y < TILE_ROWS; y++ {
-			imd.Push(pixel.V(0, float64(y)*float64(TILE_SIZE)), pixel.V(float64(WIDTH), float64(y)*float64(TILE_SIZE)))
-			imd.Line(1)
-		}
+			imd.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+			for x := 1; x < TILE_COLUMNS; x++ {
+				imd.Push(pixel.V(float64(x)*float64(TILE_SIZE), 0), pixel.V(float64(x)*float64(TILE_SIZE), float64(HEIGHT)))
+				imd.Line(1)
+			}
+			for y := 1; y < TILE_ROWS; y++ {
+				imd.Push(pixel.V(0, float64(y)*float64(TILE_SIZE)), pixel.V(float64(WIDTH), float64(y)*float64(TILE_SIZE)))
+				imd.Line(1)
+			}
 
-		/* WALLS */
-		imd.Color = color.RGBA{R: 0, G: 0, B: 255, A: 255}
-		for x := 0; x < TILE_COLUMNS; x++ {
-			for y := TILE_ROWS; y > -1; y-- {
-				if world[y][x] == 1 {
-					imd.Push(pixel.V(float64(x*int(TILE_SIZE)), float64(y*int(TILE_SIZE))+1))
-					imd.Push(pixel.V(float64(x*int(TILE_SIZE)+int(TILE_SIZE))-1, float64(y*int(TILE_SIZE)+int(TILE_SIZE))))
-					imd.Rectangle(0)
+			/* WALLS */
+			imd.Color = color.RGBA{R: 0, G: 0, B: 255, A: 255}
+			for x := 0; x < TILE_COLUMNS; x++ {
+				for y := TILE_ROWS; y > -1; y-- {
+					if world[y][x] == 1 {
+						imd.Push(pixel.V(float64(x*int(TILE_SIZE)), float64(y*int(TILE_SIZE))+1))
+						imd.Push(pixel.V(float64(x*int(TILE_SIZE)+int(TILE_SIZE))-1, float64(y*int(TILE_SIZE)+int(TILE_SIZE))))
+						imd.Rectangle(0)
+					}
 				}
 			}
+
+			/* PLAYER */
+			imd.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
+			imd.Push(pixel.V(float64(player.x), float64(player.y)))
+			imd.Circle(3, 1)
+
+			// ray
+			imd.Push(pixel.V(player.x, player.y), pixel.V(x2, y2))
+			imd.Line(1)
+
+			// collisions
+			hit, col := rayCollisions(pixel.L(pixel.V(player.x, player.y), pixel.V(x2, y2)))
+			if hit {
+				imd.Push(col)
+				imd.Circle(3, 0)
+			}
+
+			imd.Draw(win)
+
+			frames++
+		default:
 		}
 
-		/* PLAYER */
-		imd.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
-		imd.Push(pixel.V(float64(player.x), float64(player.y)))
-		imd.Circle(3, 1)
-
-		// ray
-		imd.Push(pixel.V(player.x, player.y), pixel.V(x2, y2))
-		imd.Line(1)
-
-		// collisions
-		hit, col := rayCollisions(pixel.L(pixel.V(player.x, player.y), pixel.V(x2, y2)))
-		if hit {
-			imd.Push(col)
-			imd.Circle(3, 0)
-		}
-
-		imd.Draw(win)
 		win.Update()
+		ticks++
+		if time.Now().Second() >= lastTime+1 {
+			fmt.Printf("FPS: %d | Ticks: %d\n", frames, ticks)
+			lastTime = time.Now().Second()
+			frames = 0
+			ticks = 0
+		}
 	}
 }
 
@@ -174,10 +198,9 @@ func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 
 	for y := 0; y < TILE_ROWS; y++ {
 		for x := 0; x < TILE_COLUMNS; x++ {
-			tile := pixel.Vec{X: float64(x), Y: float64(y)}
+			tile := pixel.V(float64(x), float64(y))
 
 			if isSolidTile(tile) {
-				// Define tile edges
 				tileLeft := pixel.L(pixel.V(tile.X*TILE_SIZE, tile.Y*TILE_SIZE), pixel.V(tile.X*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
 				tileRight := pixel.L(pixel.V((tile.X+1)*TILE_SIZE, tile.Y*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
 				tileTop := pixel.L(pixel.V(tile.X*TILE_SIZE, (tile.Y+1)*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
@@ -193,7 +216,6 @@ func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 		}
 	}
 
-	// Find the shortest point
 	shortestDistance := player.renderDis
 	var hitPoint pixel.Vec
 	hit := false
