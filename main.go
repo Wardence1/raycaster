@@ -15,7 +15,7 @@ const TILE_COLUMNS, TILE_ROWS int = 16 * 2, 9 * 2
 const TILE_SIZE float64 = 32
 const WIDTH, HEIGHT int = TILE_COLUMNS * int(TILE_SIZE), TILE_ROWS * int(TILE_SIZE)
 
-const COLUMNS int = 64
+const COLUMNS int = 128
 const COLUMN_WIDTH float64 = float64(WIDTH) / float64(COLUMNS)
 
 const FPS = 60
@@ -31,8 +31,8 @@ var player = struct {
 	x:           50,
 	y:           50,
 	dir:         0,
-	renderDis:   64,
-	speed:       4,
+	renderDis:   1064,
+	speed:       3,
 	sensitivity: 3,
 }
 
@@ -76,19 +76,16 @@ func run() {
 	lastTime := time.Now().Second()
 	frames := 0
 	ticks := 0
-
 	seconds := time.Tick(time.Second / FPS)
+
+	var rays []pixel.Line
+
+	debug := true // will draw the game top down instead of in person if true
 
 	for !win.Closed() {
 
 		select {
 		case <-seconds:
-			// @todo: Draw the colums for the raycaster instead of the tiles
-			/*for i := 0; i < COLUMNS; i++ {
-				imd.Color = color.RGBA{R: uint8(i * 5), G: 0, B: 0, A: 255}
-				imd.Push(pixel.Vec{X: float64(i) * COLUMN_WIDTH, Y: float64(HEIGHT)}, pixel.Vec{X: (float64(i) * COLUMN_WIDTH) + COLUMN_WIDTH, Y: 0})
-				imd.Rectangle(0)
-			}*/
 
 			////////////
 			//// UPDATE
@@ -96,17 +93,24 @@ func run() {
 
 			/* CONTROLS */
 			// @todo: account for speed up when going diagnally, divide by 1.44
+			// @todo: use delta time
+
+			playerRad := degreesToRadians(player.dir)
 			if win.Pressed(pixel.KeyW) {
-				player.y -= player.speed
+				player.x += math.Cos(playerRad) * player.speed
+				player.y += math.Sin(playerRad) * player.speed
 			}
 			if win.Pressed(pixel.KeyS) {
-				player.y += player.speed
+				player.x -= math.Cos(playerRad) * player.speed
+				player.y -= math.Sin(playerRad) * player.speed
 			}
 			if win.Pressed(pixel.KeyA) {
-				player.x -= player.speed
+				player.x += math.Cos(playerRad-math.Pi/2) * player.speed
+				player.y += math.Sin(playerRad-math.Pi/2) * player.speed
 			}
 			if win.Pressed(pixel.KeyD) {
-				player.x += player.speed
+				player.x += math.Cos(playerRad+math.Pi/2) * player.speed
+				player.y += math.Sin(playerRad+math.Pi/2) * player.speed
 			}
 
 			if win.Pressed(pixel.KeyLeft) {
@@ -116,71 +120,90 @@ func run() {
 				player.dir += player.sensitivity
 			}
 
-			/* DIRECTION */
-
-			if player.dir > 360 {
-				player.dir = 0 + (player.dir - 360)
-			} else if player.dir < 0 {
-				player.dir = 360 + player.dir
+			// @debug
+			if win.Pressed(pixel.KeySpace) {
+				debug = debug == false
 			}
 
-			rad := degreesToRadians(player.dir)
-			x2 := player.x + player.renderDis*math.Cos(rad)
-			y2 := player.y + player.renderDis*math.Sin(rad)
+			/* DIRECTION */
+			rays = rays[:0]
+			gap := .2
+			for i := -COLUMNS / 2; i < COLUMNS/2; i++ {
+				rad := degreesToRadians(player.dir + float64(i)*gap)
+				x := player.x + player.renderDis*math.Cos(rad)
+				y := player.y + player.renderDis*math.Sin(rad)
+
+				hit, ray := rayCollisions(pixel.L(pixel.V(player.x, player.y), pixel.V(x, y)))
+				if hit {
+					rays = append(rays, pixel.L(pixel.V(player.x, player.y), ray))
+				} else {
+					// @cleanup This's accounting for the vertical line issue, it should panic
+					rays = append(rays, pixel.L(pixel.V(player.x, player.y), pixel.V(player.renderDis, player.renderDis)))
+				}
+			}
 
 			////////////
 			//// DRAW
 			////////////
 
-			/* LINES */
 			imd.Clear()
 			win.Clear(color.Black)
 
-			imd.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255}
-			for x := 1; x < TILE_COLUMNS; x++ {
-				imd.Push(pixel.V(float64(x)*float64(TILE_SIZE), 0), pixel.V(float64(x)*float64(TILE_SIZE), float64(HEIGHT)))
-				imd.Line(1)
-			}
-			for y := 1; y < TILE_ROWS; y++ {
-				imd.Push(pixel.V(0, float64(y)*float64(TILE_SIZE)), pixel.V(float64(WIDTH), float64(y)*float64(TILE_SIZE)))
-				imd.Line(1)
-			}
+			if debug {
 
-			/* WALLS */
-			imd.Color = color.RGBA{R: 0, G: 0, B: 255, A: 255}
-			for x := 0; x < TILE_COLUMNS; x++ {
-				for y := TILE_ROWS; y > -1; y-- {
-					if world[y][x] == 1 {
-						imd.Push(pixel.V(float64(x*int(TILE_SIZE)), float64(y*int(TILE_SIZE))+1))
-						imd.Push(pixel.V(float64(x*int(TILE_SIZE)+int(TILE_SIZE))-1, float64(y*int(TILE_SIZE)+int(TILE_SIZE))))
-						imd.Rectangle(0)
+				/* LINES */
+				imd.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+				for x := 1; x < TILE_COLUMNS; x++ {
+					imd.Push(pixel.V(float64(x)*float64(TILE_SIZE), 0), pixel.V(float64(x)*float64(TILE_SIZE), float64(HEIGHT)))
+					imd.Line(1)
+				}
+				for y := 1; y < TILE_ROWS; y++ {
+					imd.Push(pixel.V(0, float64(y)*float64(TILE_SIZE)), pixel.V(float64(WIDTH), float64(y)*float64(TILE_SIZE)))
+					imd.Line(1)
+				}
+
+				/* WALLS */
+				imd.Color = color.RGBA{R: 0, G: 0, B: 255, A: 255}
+				for x := 0; x < TILE_COLUMNS; x++ {
+					for y := TILE_ROWS; y > -1; y-- {
+						if world[y][x] == 1 {
+							imd.Push(pixel.V(float64(x*int(TILE_SIZE)), float64(y*int(TILE_SIZE))+1))
+							imd.Push(pixel.V(float64(x*int(TILE_SIZE)+int(TILE_SIZE))-1, float64(y*int(TILE_SIZE)+int(TILE_SIZE))))
+							imd.Rectangle(0)
+						}
 					}
+				}
+
+				/* PLAYER */
+				imd.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
+				imd.Push(pixel.V(float64(player.x), float64(player.y)))
+				imd.Circle(3, 1)
+				// rays
+				for _, ray := range rays {
+					imd.Push(ray.A, ray.B)
+					imd.Line(1)
+				}
+
+			} else {
+
+				/* FIRST PERSON */
+				imd.Color = color.RGBA{R: 255, G: 255, B: 0, A: 255}
+				for i := 0; i < COLUMNS; i++ {
+					length := rays[i].Len()
+					imd.Push(pixel.V(float64(i)*COLUMN_WIDTH, length/3))
+					imd.Push(pixel.V(float64(i)*COLUMN_WIDTH+COLUMN_WIDTH, float64(HEIGHT)-(length/3)))
+					imd.Rectangle(0)
 				}
 			}
 
-			/* PLAYER */
-			imd.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
-			imd.Push(pixel.V(float64(player.x), float64(player.y)))
-			imd.Circle(3, 1)
-
-			// ray
-			imd.Push(pixel.V(player.x, player.y), pixel.V(x2, y2))
-			imd.Line(1)
-
-			// collisions
-			hit, col := rayCollisions(pixel.L(pixel.V(player.x, player.y), pixel.V(x2, y2)))
-			if hit {
-				imd.Push(col)
-				imd.Circle(3, 0)
-			}
-
 			imd.Draw(win)
-
 			frames++
 		default:
 		}
 
 		win.Update()
+
+		// @todo FPS doesn't print out after awhile
 		ticks++
 		if time.Now().Second() >= lastTime+1 {
 			fmt.Printf("FPS: %d | Ticks: %d\n", frames, ticks)
@@ -191,8 +214,10 @@ func run() {
 	}
 }
 
-// returns the end end point of a line and true if a line is hit, if not it'll return false and an (-1, -1) vector
+// returns true and the end point of the line if a wall is hit, if not it'll return false and a zero vector
 func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
+	// @optimize: should check each peice of the grid sequentially based on where the ray is going
+	// For now it goes through each tile to see if it's solid, then checks to see if a ray is hitting it
 
 	var colPoints []pixel.Vec
 
@@ -206,6 +231,7 @@ func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 				tileTop := pixel.L(pixel.V(tile.X*TILE_SIZE, (tile.Y+1)*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, (tile.Y+1)*TILE_SIZE))
 				tileBottom := pixel.L(pixel.V(tile.X*TILE_SIZE, tile.Y*TILE_SIZE), pixel.V((tile.X+1)*TILE_SIZE, tile.Y*TILE_SIZE))
 
+				// @todo Fix the vertical line rendering issue, line.Intersect doesn't register vertical lines
 				for _, edge := range []pixel.Line{tileLeft, tileRight, tileTop, tileBottom} {
 					point, hit := line.Intersect(edge)
 					if hit {
@@ -221,7 +247,7 @@ func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 	hit := false
 
 	for _, point := range colPoints {
-		pDistance := distance(pixel.V(player.x, player.y), point)
+		pDistance := pixel.L(pixel.V(player.x, player.y), point).Len()
 
 		if pDistance < shortestDistance {
 			shortestDistance = pDistance
@@ -233,7 +259,7 @@ func rayCollisions(line pixel.Line) (bool, pixel.Vec) {
 		return true, hitPoint
 	}
 
-	return false, pixel.V(-1, -1)
+	return false, pixel.ZV
 }
 
 func CoordToTile(v pixel.Vec) pixel.Vec {
@@ -245,12 +271,6 @@ func CoordToTile(v pixel.Vec) pixel.Vec {
 
 func isSolidTile(tile pixel.Vec) bool {
 	return world[int(tile.Y)][int(tile.X)] == 1
-}
-
-func distance(p1, p2 pixel.Vec) float64 {
-	dx := p2.X - p1.X
-	dy := p2.Y - p1.Y
-	return math.Sqrt(dx*dx + dy*dy)
 }
 
 func degreesToRadians(degrees float64) float64 {
