@@ -15,7 +15,7 @@ const TILE_COLUMNS, TILE_ROWS int = 16 * 2, 9 * 2
 const TILE_SIZE float64 = 32
 const WIDTH, HEIGHT int = TILE_COLUMNS * int(TILE_SIZE), TILE_ROWS * int(TILE_SIZE)
 
-const COLUMNS int = 128
+const COLUMNS int = 60
 const COLUMN_WIDTH float64 = float64(WIDTH) / float64(COLUMNS)
 
 const FPS = 60
@@ -32,20 +32,20 @@ var player = struct {
 	y:           50,
 	dir:         0,
 	renderDis:   1064,
-	speed:       3,
-	sensitivity: 3,
+	speed:       1.5,
+	sensitivity: 1.5,
 }
 
 var world = [TILE_ROWS + 1][TILE_COLUMNS + 1]int{
 	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	{1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 	{1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
@@ -73,14 +73,14 @@ func run() {
 
 	imd := imdraw.New(nil)
 
-	lastTime := time.Now().Second()
+	lastTime := 0
 	frames := 0
 	ticks := 0
 	seconds := time.Tick(time.Second / FPS)
 
 	var rays []pixel.Line
 
-	debug := true // will draw the game top down instead of in person if true
+	debug := false // will draw the game top down instead of in person if true
 
 	for !win.Closed() {
 
@@ -127,7 +127,7 @@ func run() {
 
 			/* DIRECTION */
 			rays = rays[:0]
-			gap := .2
+			gap := .5
 			for i := -COLUMNS / 2; i < COLUMNS/2; i++ {
 				rad := degreesToRadians(player.dir + float64(i)*gap)
 				x := player.x + player.renderDis*math.Cos(rad)
@@ -189,10 +189,14 @@ func run() {
 				/* FIRST PERSON */
 				imd.Color = color.RGBA{R: 255, G: 255, B: 0, A: 255}
 				for i := 0; i < COLUMNS; i++ {
-					length := rays[i].Len()
-					imd.Push(pixel.V(float64(i)*COLUMN_WIDTH, length/3))
-					imd.Push(pixel.V(float64(i)*COLUMN_WIDTH+COLUMN_WIDTH, float64(HEIGHT)-(length/3)))
+					distance := rays[i].Len()
+
+					colHeight := (float64(HEIGHT) * (float64(HEIGHT) / 4)) / distance
+
+					imd.Push(pixel.V(float64(i)*COLUMN_WIDTH, colHeight/2))
+					imd.Push(pixel.V(float64(i)*COLUMN_WIDTH+COLUMN_WIDTH, float64(HEIGHT)-colHeight/2))
 					imd.Rectangle(0)
+
 				}
 			}
 
